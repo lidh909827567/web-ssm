@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+         http://www.springframework.org/schema/beans/spring-beans-4.3.xsd"  >
+
+    <!-- 真正可以产生Connection的ConnectionFactory，由对应的 JMS服务厂商提供 -->
+    <bean id="targetConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
+        <property name="brokerURL" value="tcp://192.168.199.213:61616" />
+    </bean>
+    <!-- Spring用于管理真正的ConnectionFactory的ConnectionFactory -->
+    <bean id="connectionFactory"
+          class="org.springframework.jms.connection.SingleConnectionFactory">
+        <!-- 目标ConnectionFactory对应真实的可以产生JMS Connection的ConnectionFactory -->
+        <property name="targetConnectionFactory" ref="targetConnectionFactory" />
+    </bean>
+    <!--这个是队列目的地，点对点的 -->
+    <bean id="queueDestination" class="org.apache.activemq.command.ActiveMQQueue">
+        <constructor-arg>
+            <value>spring-queue</value>
+        </constructor-arg>
+    </bean>
+
+    <!--这个是发布订阅的目的地，一对多的 -->
+    <bean id="topicDestination" class="org.apache.activemq.command.ActiveMQTopic">
+        <constructor-arg value="topic" />
+    </bean>
+
+    <bean id="jmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <property name="connectionFactory" ref="targetConnectionFactory"></property>
+        <!--<property name="defaultDestination" ref="dest" />-->
+        <!--<property name="messageConverter" ref="messageConverter" />-->
+        <property name="pubSubDomain" value="false" />
+        <property name="explicitQosEnabled" value="true" /> <!-- deliveryMode, priority, timeToLive 的开关，要生效，必须配置为true，默认false-->
+        <property name="deliveryMode" value="1" /> <!-- 发送模式  DeliveryMode.NON_PERSISTENT=1:非持久 ; DeliveryMode.PERSISTENT=2:持久-->
+    </bean>
+
+    <!-- 接收消息 -->
+    <!-- 配置监听器 -->
+    <bean id="myMessageListener" class="com.lidh.ListenerUtils.QueueListener" />
+
+
+    <!-- 消息监听容器 -->
+    <bean class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="connectionFactory" />
+        <property name="destination" ref="queueDestination" />
+        <property name="messageListener" ref="myMessageListener" />
+    </bean>
+
+    <!-- activemq接收端 商品id   -->
+    <bean id="itemAddMessageListener" class="com.lidh.ListenerUtils.TopicListener" />
+    <!-- 消息监听容器 -->
+    <bean class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="connectionFactory" />
+        <property name="destination" ref="topicDestination" />
+        <property name="messageListener" ref="itemAddMessageListener" />
+    </bean>
+
+
+
+</beans>
